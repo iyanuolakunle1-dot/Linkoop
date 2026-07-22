@@ -1,0 +1,123 @@
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { api } from "../lib/api";
+
+export function useRealtimeDM(threadId) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!threadId) return;
+    setLoading(true);
+    api.get(`/dm/threads/${threadId}/messages`)
+      .then(setMessages)
+      .catch((err) => console.error("Failed to load DM messages:", err))
+      .finally(() => setLoading(false));
+  }, [threadId]);
+
+  useEffect(() => {
+    if (!threadId) return;
+    const suffix = Math.random().toString(36).slice(2);
+
+    const msgSub = supabase
+      .channel(`dm:${threadId}:${suffix}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "dm_messages", filter: `thread_id=eq.${threadId}` },
+        async (payload) => {
+          const { data: sender } = await supabase
+            .from("profiles")
+            .select("id, username, full_name, avatar_color")
+            .eq("id", payload.new.sender_id)
+            .single();
+
+          setMessages((prev) => {
+            const merged = new Map(prev.map((m) => [m.id, m]));
+            merged.set(payload.new.id, { ...payload.new, sender, attachments: [] });
+            return Array.from(merged.values());
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "dm_messages", filter: `thread_id=eq.${threadId}` },
+        (payload) => {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === payload.new.id ? { ...m, ...payload.new } : m))
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "dm_messages" },
+        (payload) => {
+          setMessages((prev) => prev.filter((m) => m.id !== payload.old.id));
+        }
+      )
+      .subscribe();
+
+    const attachSub = supabase
+      .channel(`attachments:dm:${threadId}:${suffix}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "attachments", filter: "message_type=eq.dm" },
+        (payload) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === payload.new.message_id
+                ? { ...m, attachments: [...(m.attachments || []), payload.new] }
+                : m
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(msgSub);
+      supabase.removeChannel(attachSub);
+    };
+  }, [threadId]);
+
+  const sendMessage = useCallback(
+    async (content, attachment) => {
+      const msg = await api.post(`/dm/threads/${threadId}/messages`, { content: content || "" });
+
+      let attachRecord = null;
+      if (attachment) {
+        attachRecord = await api.post("/upload/attach", {
+          message_id: msg.id,
+          message_type: "dm",
+          url: attachment.url,
+          file_type: attachment.fileType,
+          file_name: attachment.fileName,
+        });
+      }
+
+      setMessages((prev) => {
+        const merged = new Map(prev.map((m) => [m.id, m]));
+        merged.set(msg.id, { ...msg, attachments: attachRecord ? [attachRecord] : [] });
+        return Array.from(merged.values());
+      });
+    },
+    [threadId]
+  );
+
+  const editMessage = useCallback(
+    async (messageId, newContent) => {
+      const updated = await api.patch(`/dm/threads/${threadId}/messages/${messageId}`, { content: newContent });
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...updated } : m)));
+    },
+    [threadId]
+  );
+
+  const deleteMessage = useCallback(
+    async (messageId) => {
+      await api.delete(`/dm/threads/${threadId}/messages/${messageId}`);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    },
+    [threadId]
+  );
+
+  return { messages, loading, sendMessage, editMessage, deleteMessage };
+}

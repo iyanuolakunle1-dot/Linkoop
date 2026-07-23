@@ -53,7 +53,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-950">
+    <div className="w-full h-screen fixed inset-0 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
       <div className="flex-1 flex w-full min-h-0 relative overflow-hidden">
         <Sidebar
           activeView={activeView}

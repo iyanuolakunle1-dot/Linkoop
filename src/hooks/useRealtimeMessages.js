@@ -81,22 +81,23 @@ export function useRealtimeMessages(channelId) {
 
   const sendMessage = useCallback(
     async (content, attachment) => {
-      const msg = await api.post(`/messages/${channelId}`, { content: content || "" });
+      // Package the attachment into an array if it exists
+      const attachmentsPayload = attachment ? [{
+        url: attachment.url,
+        file_type: attachment.fileType,
+        file_name: attachment.fileName,
+        message_type: "channel"
+      }] : [];
 
-      let attachRecord = null;
-      if (attachment) {
-        attachRecord = await api.post("/upload/attach", {
-          message_id: msg.id,
-          message_type: "channel",
-          url: attachment.url,
-          file_type: attachment.fileType,
-          file_name: attachment.fileName,
-        });
-      }
+      // Send content and attachments together in a single atomic request
+      const msg = await api.post(`/messages/${channelId}`, { 
+        content: content || "", 
+        attachments: attachmentsPayload 
+      });
 
       setMessages((prev) => {
         const merged = new Map(prev.map((m) => [m.id, m]));
-        merged.set(msg.id, { ...msg, reactions: [], attachments: attachRecord ? [attachRecord] : [] });
+        merged.set(msg.id, { ...msg, reactions: [], attachments: msg.attachments || [] });
         return Array.from(merged.values());
       });
     },

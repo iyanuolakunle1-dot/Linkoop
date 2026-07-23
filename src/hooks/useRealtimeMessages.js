@@ -6,11 +6,27 @@ export function useRealtimeMessages(channelId) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Helper to normalize attachment fields (`url` vs `file_url`, etc.)
+  const normalizeAttachments = (attachments = []) => {
+    return attachments.map((att) => ({
+      ...att,
+      file_url: att.file_url || att.url,
+      file_type: att.file_type || att.fileType
+    }));
+  };
+
   useEffect(() => {
     if (!channelId) return;
     setLoading(true);
     api.get(`/messages/${channelId}`)
-      .then(setMessages)
+      .then((data) => {
+        // Normalize loaded messages attachments
+        const formatted = (data || []).map((m) => ({
+          ...m,
+          attachments: normalizeAttachments(m.attachments)
+        }));
+        setMessages(formatted);
+      })
       .catch((err) => console.error("Failed to load messages:", err))
       .finally(() => setLoading(false));
   }, [channelId]);
@@ -33,7 +49,12 @@ export function useRealtimeMessages(channelId) {
 
           setMessages((prev) => {
             const merged = new Map(prev.map((m) => [m.id, m]));
-            merged.set(payload.new.id, { ...payload.new, sender, reactions: [], attachments: [] });
+            merged.set(payload.new.id, { 
+              ...payload.new, 
+              sender, 
+              reactions: [], 
+              attachments: [] 
+            });
             return Array.from(merged.values());
           });
         }
@@ -60,12 +81,18 @@ export function useRealtimeMessages(channelId) {
       .channel(`attachments:channel:${channelId}:${suffix}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "attachments", filter: "message_type=eq.channel" },
+        { event: "INSERT", schema: "public", table: "attachments" },
         (payload) => {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === payload.new.message_id
-                ? { ...m, attachments: [...(m.attachments || []), payload.new] }
+                ? { 
+                    ...m, 
+                    attachments: normalizeAttachments([
+                      ...(m.attachments || []), 
+                      payload.new
+                    ]) 
+                  }
                 : m
             )
           );
@@ -81,15 +108,14 @@ export function useRealtimeMessages(channelId) {
 
   const sendMessage = useCallback(
     async (content, attachment) => {
-      // Package the attachment into an array if it exists
+      // Note: mapping `url` to both properties safely so the backend insert captures it
       const attachmentsPayload = attachment ? [{
-        url: attachment.url,
-        file_type: attachment.fileType,
-        file_name: attachment.fileName,
+        url: attachment.url || attachment.file_url,
+        file_type: attachment.fileType || attachment.file_type,
+        file_name: attachment.fileName || attachment.file_name,
         message_type: "channel"
       }] : [];
 
-      // Send content and attachments together in a single atomic request
       const msg = await api.post(`/messages/${channelId}`, { 
         content: content || "", 
         attachments: attachmentsPayload 
@@ -97,7 +123,14 @@ export function useRealtimeMessages(channelId) {
 
       setMessages((prev) => {
         const merged = new Map(prev.map((m) => [m.id, m]));
-        merged.set(msg.id, { ...msg, reactions: [], attachments: msg.attachments || [] });
+        const formattedAttachments = normalizeAttachments(msg.attachments || []);
+        
+        merged.set(msg.id, { 
+          ...msg, 
+          reactions: msg.reactions || [], 
+          attachments: formattedAttachments 
+        });
+        
         return Array.from(merged.values());
       });
     },

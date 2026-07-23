@@ -24,13 +24,17 @@ export default function Composer({ onSend, disabled }) {
 
       const { data: { session } } = await supabase.auth.getSession();
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+      // FIXED: Added /api prefix to match standard backend route mounting (/api/upload)
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session?.access_token}` },
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Upload failed (${res.status}): ${errorText}`);
+      }
       return await res.json();
     } finally {
       setUploading(false);
@@ -71,7 +75,6 @@ export default function Composer({ onSend, disabled }) {
 
     try {
       const uploaded = await uploadFile(blob, "voice-note.webm");
-      // Voice notes send immediately, no staged preview
       onSend("", {
         url: uploaded.url,
         fileName: uploaded.fileName,
@@ -98,14 +101,14 @@ export default function Composer({ onSend, disabled }) {
       <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
         <button
           onClick={() => cancel()}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-red-500"
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-red-500 flex-shrink-0"
           title="Cancel recording"
         >
           <Trash2 size={19} />
         </button>
-        <div className="flex-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-          Recording... {formatSeconds(seconds)}
+        <div className="flex-1 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 min-w-0">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+          <span className="truncate">Recording... {formatSeconds(seconds)}</span>
         </div>
         <button
           onClick={handleMicClick}
@@ -122,7 +125,7 @@ export default function Composer({ onSend, disabled }) {
     <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
       {pendingFile && (
         <div className="px-4 pt-3 flex items-center gap-2">
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             {pendingFile.previewUrl ? (
               <img src={pendingFile.previewUrl} alt="" className="w-14 h-14 object-cover rounded-lg" />
             ) : (
@@ -141,19 +144,19 @@ export default function Composer({ onSend, disabled }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 sm:px-4 py-3">
+      <form onSubmit={handleSubmit} className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-3">
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 hidden sm:block"
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
           title="Attach a file"
         >
           <Plus size={19} className="text-gray-500" />
         </button>
 
-        <div className="flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full pl-4 pr-2 py-1.5">
+        <div className="flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full pl-3 pr-2 py-1.5 min-w-0">
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -162,18 +165,18 @@ export default function Composer({ onSend, disabled }) {
             }}
             placeholder={uploading ? "Uploading..." : "Type a message..."}
             disabled={uploading}
-            className="flex-1 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400"
+            className="flex-1 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 min-w-0"
           />
-          <button type="button" className="p-1.5 hidden sm:block">
-            <Smile size={18} className="text-gray-400" />
+          <button type="button" className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex-shrink-0">
+            <Smile size={18} />
           </button>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="p-1.5 hidden sm:block"
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex-shrink-0"
           >
-            <ImageIcon size={18} className="text-gray-400" />
+            <ImageIcon size={18} />
           </button>
         </div>
 

@@ -9,7 +9,7 @@ export function useRealtimeDM(threadId) {
   useEffect(() => {
     if (!threadId) return;
     setLoading(true);
-    api.get(`/dm/threads/${threadId}/messages`)
+    api.get(`/api/dm/threads/${threadId}/messages`)
       .then(setMessages)
       .catch((err) => console.error("Failed to load DM messages:", err))
       .finally(() => setLoading(false));
@@ -81,17 +81,28 @@ export function useRealtimeDM(threadId) {
 
   const sendMessage = useCallback(
     async (content, attachment) => {
-      const msg = await api.post(`/dm/threads/${threadId}/messages`, { content: content || "" });
+      let textContent = content && content.trim() !== "" ? content : null;
+      if (!textContent && attachment) {
+        textContent = `Sent an attachment: ${attachment.fileName || "file"}`;
+      }
+
+      const msg = await api.post(`/api/dm/threads/${threadId}/messages`, { 
+        content: textContent || "" 
+      });
 
       let attachRecord = null;
       if (attachment) {
-        attachRecord = await api.post("/upload/attach", {
-          message_id: msg.id,
-          message_type: "dm",
-          url: attachment.url,
-          file_type: attachment.fileType,
-          file_name: attachment.fileName,
-        });
+        try {
+          attachRecord = await api.post("/api/upload/attach", {
+            message_id: msg.id,
+            message_type: "dm",
+            url: attachment.url,
+            file_type: attachment.fileType,
+            file_name: attachment.fileName,
+          });
+        } catch (uploadErr) {
+          console.error("Failed to save attachment record:", uploadErr);
+        }
       }
 
       setMessages((prev) => {
@@ -105,7 +116,7 @@ export function useRealtimeDM(threadId) {
 
   const editMessage = useCallback(
     async (messageId, newContent) => {
-      const updated = await api.patch(`/dm/threads/${threadId}/messages/${messageId}`, { content: newContent });
+      const updated = await api.patch(`/api/dm/threads/${threadId}/messages/${messageId}`, { content: newContent });
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, ...updated } : m)));
     },
     [threadId]
@@ -113,7 +124,7 @@ export function useRealtimeDM(threadId) {
 
   const deleteMessage = useCallback(
     async (messageId) => {
-      await api.delete(`/dm/threads/${threadId}/messages/${messageId}`);
+      await api.delete(`/api/dm/threads/${threadId}/messages/${messageId}`);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     },
     [threadId]

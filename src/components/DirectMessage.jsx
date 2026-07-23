@@ -22,9 +22,6 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
     }
   }, [messages]);
 
-  // Mark this thread as read the moment it's opened, and again whenever a
-  // new message arrives while it's still open (otherwise a message that
-  // lands while you're actively viewing the thread would stay "unread").
   useEffect(() => {
     if (!threadId) return;
 
@@ -92,7 +89,11 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
         ))}
       </div>
 
-      <Composer onSend={sendMessage} />
+      <Composer 
+        onSend={sendMessage} 
+        enableVoiceNotes={true} 
+        showAttachments={true} 
+      />
     </div>
   );
 }

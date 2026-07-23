@@ -20,7 +20,16 @@ export default function Chat() {
   const [allUsers, setAllUsers] = useState([]);
 
   useEffect(() => {
-    api.get("/api/profiles").then(setAllUsers).catch(() => {});
+    let isMounted = true;
+    api.get("/api/profiles")
+      .then((data) => {
+        if (isMounted) setAllUsers(data || []);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   function selectGeneral() {
@@ -48,12 +57,18 @@ export default function Chat() {
   }
 
   async function handleSelectUserFromSearch(userId) {
-    const { threadId } = await api.post(`/api/dm/threads/${userId}`, {});
-    selectDM(threadId, userId);
+    try {
+      const response = await api.post(`/api/dm/threads/${userId}`, {});
+      if (response && response.threadId) {
+        selectDM(response.threadId, userId);
+      }
+    } catch (err) {
+      console.error("Failed to create/fetch DM thread from search:", err);
+    }
   }
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
+    <div className="w-full h-[100dvh] flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
       <div className="flex-1 flex w-full min-h-0 relative overflow-hidden">
         <Sidebar
           activeView={activeView}
@@ -66,7 +81,7 @@ export default function Chat() {
         />
 
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-          <div className="sticky top-0 z-30 flex-shrink-0 w-full bg-gray-50 dark:bg-gray-950">
+          <div className="sticky top-0 z-20 flex-shrink-0">
             <TopBar
               onSelectProfile={selectProfile}
               onSelectUser={handleSelectUserFromSearch}
@@ -75,34 +90,45 @@ export default function Chat() {
             />
           </div>
 
-          <div className="flex-1 flex min-h-0 overflow-hidden relative">
-            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+          <div className="flex-1 flex min-h-0 overflow-hidden relative w-full">
+            {/* Main content slot wrapped with isolated structural container */}
+            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
               {activeView === "general" && (
-                <GeneralChat
-                  onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-                  onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
-                />
+                <div key="wrapper-general" className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+                  <GeneralChat
+                    onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+                    onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
+                  />
+                </div>
               )}
 
               {activeView === "dm" && !selectedThreadId && (
-                <DMList
-                  onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-                  onSelectThread={selectDM}
-                  allUsers={allUsers}
-                  currentUserId={user?.id}
-                />
+                <div key="wrapper-dmlist" className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+                  <DMList
+                    onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+                    onSelectThread={selectDM}
+                    allUsers={allUsers}
+                    currentUserId={user?.id}
+                  />
+                </div>
               )}
 
               {activeView === "dm" && selectedThreadId && (
-                <DirectMessage
-                  threadId={selectedThreadId}
-                  otherUserId={selectedUserId}
-                  onBack={goToDMList}
-                  onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
-                />
+                <div key={`wrapper-dm-thread-${selectedThreadId}`} className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+                  <DirectMessage
+                    threadId={selectedThreadId}
+                    otherUserId={selectedUserId}
+                    onBack={goToDMList}
+                    onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
+                  />
+                </div>
               )}
 
-              {activeView === "profile" && <Profile />}
+              {activeView === "profile" && (
+                <div key="wrapper-profile" className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+                  <Profile />
+                </div>
+              )}
             </div>
 
             {activeView !== "profile" && (
@@ -117,7 +143,7 @@ export default function Chat() {
         </div>
       </div>
 
-      <div className="flex-shrink-0 z-35">
+      <div className="flex-shrink-0">
         <MobileBottomNav
           activeView={activeView}
           onSelectGeneral={selectGeneral}

@@ -34,6 +34,12 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
   const handleSendMessage = async (content, attachmentFile) => {
     if (!sendMessage) return;
     try {
+      // Safely validate file size before passing to custom hook/API if needed
+      if (attachmentFile && attachmentFile.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB");
+        return;
+      }
+
       await sendMessage(content, attachmentFile);
     } catch (err) {
       console.error("Failed to send message:", err);

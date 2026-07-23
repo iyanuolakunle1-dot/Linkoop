@@ -20,7 +20,7 @@ export default function Chat() {
   const [allUsers, setAllUsers] = useState([]);
 
   useEffect(() => {
-    api.get("/profiles").then(setAllUsers).catch(() => {});
+    api.get("/api/profiles").then(setAllUsers).catch(() => {});
   }, []);
 
   function selectGeneral() {
@@ -48,7 +48,7 @@ export default function Chat() {
   }
 
   async function handleSelectUserFromSearch(userId) {
-    const { threadId } = await api.post(`/dm/threads/${userId}`, {});
+    const { threadId } = await api.post(`/api/dm/threads/${userId}`, {});
     selectDM(threadId, userId);
   }
 

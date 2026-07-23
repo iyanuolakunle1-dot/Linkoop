@@ -6,7 +6,7 @@ export function usePresence() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    api.get("/profiles").then(setUsers).catch(() => {});
+    api.get("/api/profiles").then(setUsers).catch(() => {});
 
     const channelName = `profiles-status-${Math.random().toString(36).slice(2)}`;
 

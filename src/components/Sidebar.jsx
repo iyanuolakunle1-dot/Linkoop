@@ -22,7 +22,7 @@ export default function Sidebar({
   const [showNewMessage, setShowNewMessage] = useState(false);
 
   useEffect(() => {
-    api.get("/profiles").then(setAllUsers).catch(() => {});
+    api.get("/api/profiles").then(setAllUsers).catch(() => {});
   }, []);
 
   async function startNewDM(userId) {

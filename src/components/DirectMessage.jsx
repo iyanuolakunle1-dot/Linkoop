@@ -30,6 +30,16 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
       .catch((err) => console.error("Failed to mark thread as read:", err));
   }, [threadId, messages.length]);
 
+  // Handle sending message along with attachments/files correctly
+  const handleSendMessage = async (content, attachmentFile) => {
+    if (!sendMessage) return;
+    try {
+      await sendMessage(content, attachmentFile);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    }
+  };
+
   if (!threadId) {
     return (
       <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
@@ -90,7 +100,7 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
       </div>
 
       <Composer 
-        onSend={sendMessage} 
+        onSend={handleSendMessage} 
         enableVoiceNotes={true} 
         showAttachments={true} 
       />

@@ -10,7 +10,14 @@ export function useRealtimeDM(threadId) {
     if (!threadId) return;
     setLoading(true);
     api.get(`/api/dm/threads/${threadId}/messages`)
-      .then(setMessages)
+      .then((data) => {
+        // Ensure every message object has an array for attachments
+        const normalized = (data || []).map((m) => ({
+          ...m,
+          attachments: m.attachments || []
+        }));
+        setMessages(normalized);
+      })
       .catch((err) => console.error("Failed to load DM messages:", err))
       .finally(() => setLoading(false));
   }, [threadId]);
@@ -33,7 +40,13 @@ export function useRealtimeDM(threadId) {
 
           setMessages((prev) => {
             const merged = new Map(prev.map((m) => [m.id, m]));
-            merged.set(payload.new.id, { ...payload.new, sender, attachments: [] });
+            // Preserve existing attachments if they were already populated locally
+            const existing = merged.get(payload.new.id);
+            merged.set(payload.new.id, { 
+              ...payload.new, 
+              sender, 
+              attachments: existing?.attachments || [] 
+            });
             return Array.from(merged.values());
           });
         }
@@ -65,7 +78,10 @@ export function useRealtimeDM(threadId) {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === payload.new.message_id
-                ? { ...m, attachments: [...(m.attachments || []), payload.new] }
+                ? { 
+                    ...m, 
+                    attachments: [...(m.attachments || []).filter(a => a.id !== payload.new.id), payload.new] 
+                  }
                 : m
             )
           );
@@ -107,7 +123,8 @@ export function useRealtimeDM(threadId) {
 
       setMessages((prev) => {
         const merged = new Map(prev.map((m) => [m.id, m]));
-        merged.set(msg.id, { ...msg, attachments: attachRecord ? [attachRecord] : [] });
+        const currentAttachments = attachRecord ? [attachRecord] : [];
+        merged.set(msg.id, { ...msg, attachments: currentAttachments });
         return Array.from(merged.values());
       });
     },

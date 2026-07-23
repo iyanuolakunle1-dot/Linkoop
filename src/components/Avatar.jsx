@@ -1,4 +1,11 @@
-export default function Avatar({ name = "?", color = "#6366F1", size = 10, status, className = "" }) {
+export default function Avatar({ 
+  name = "?", 
+  color = "#6366F1", 
+  size = 10, 
+  status, 
+  className = "",
+  imageUrl = null 
+}) {
   const initials = name
     .split(" ")
     .map((p) => p[0])
@@ -11,10 +18,18 @@ export default function Avatar({ name = "?", color = "#6366F1", size = 10, statu
   return (
     <div className={`relative flex-shrink-0 ${className}`} style={{ width: px, height: px }}>
       <div
-        className="w-full h-full rounded-full flex items-center justify-center text-white font-semibold"
-        style={{ backgroundColor: color, fontSize: px / 2.4 }}
+        className="w-full h-full rounded-full flex items-center justify-center text-white font-semibold overflow-hidden"
+        style={{ backgroundColor: imageUrl ? 'transparent' : color, fontSize: px / 2.4 }}
       >
-        {initials}
+        {imageUrl ? (
+          <img 
+            src={imageUrl} 
+            alt={name} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          initials
+        )}
       </div>
       {status && (
         <span

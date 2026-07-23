@@ -115,6 +115,17 @@ export default function Composer({ onSend, disabled }) {
       input.setSelectionRange(pos, pos);
     });
   }
+// Add this to the existing Composer component
+// Ensure the file input and voice recording work on mobile
+
+// In the Composer component, add:
+const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+
+useEffect(() => {
+  const handleResize = () => setIsMobile(window.innerWidth < 640);
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
 
   if (recording) {
     return (

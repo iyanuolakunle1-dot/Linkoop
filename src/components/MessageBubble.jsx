@@ -130,7 +130,36 @@ export default function MessageBubble({ message, showSender = true, onReact, onE
     }
     setConfirmingDelete(false);
   }
+// Add this state in MessageBubble component
+const [imageModalOpen, setImageModalOpen] = useState(false);
 
+// Update the AttachmentView component to:
+const [modalOpen, setModalOpen] = useState(false);
+
+// In the image section:
+if (isImage) {
+  return (
+    <>
+      <button
+        onClick={() => setModalOpen(true)}
+        className="block mt-1 cursor-pointer"
+      >
+        <img
+          src={fileUrl}
+          alt={fileName}
+          className="max-w-[240px] max-h-[240px] rounded-xl object-cover border border-black/5 hover:opacity-90 transition-opacity"
+          loading="lazy"
+        />
+      </button>
+      {modalOpen && (
+        <ImageModal 
+          imageUrl={fileUrl} 
+          onClose={() => setModalOpen(false)} 
+        />
+      )}
+    </>
+  );
+}
   const editControls = (
     <div key="edit-controls" className="flex flex-col gap-1.5 mt-1 w-full max-w-[280px]">
       <textarea

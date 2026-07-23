@@ -53,7 +53,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-gray-50 dark:bg-gray-950">
+    <div className="w-full h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar
         activeView={activeView}
         onSelectGeneral={selectGeneral}
@@ -64,8 +64,7 @@ export default function Chat() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      {/* min-h-0 lets the flex-1 child below actually scroll within its own box */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <TopBar
           onSelectProfile={selectProfile}
           onSelectUser={handleSelectUserFromSearch}
@@ -73,32 +72,45 @@ export default function Chat() {
           onSelectDmMessage={selectDM}
         />
 
-        {activeView === "general" && (
-          <GeneralChat
-            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-            onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
-          />
-        )}
+        <div className="flex-1 flex min-h-0 overflow-hidden relative">
+          <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+            {activeView === "general" && (
+              <GeneralChat
+                onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+                onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
+              />
+            )}
 
-        {activeView === "dm" && !selectedThreadId && (
-          <DMList
-            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-            onSelectThread={selectDM}
-            allUsers={allUsers}
-            currentUserId={user?.id}
-          />
-        )}
+            {activeView === "dm" && !selectedThreadId && (
+              <DMList
+                onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+                onSelectThread={selectDM}
+                allUsers={allUsers}
+                currentUserId={user?.id}
+              />
+            )}
 
-        {activeView === "dm" && selectedThreadId && (
-          <DirectMessage
-            threadId={selectedThreadId}
-            otherUserId={selectedUserId}
-            onBack={goToDMList}
-            onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
-          />
-        )}
+            {activeView === "dm" && selectedThreadId && (
+              <DirectMessage
+                threadId={selectedThreadId}
+                otherUserId={selectedUserId}
+                onBack={goToDMList}
+                onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
+              />
+            )}
 
-        {activeView === "profile" && <Profile />}
+            {activeView === "profile" && <Profile />}
+          </div>
+
+          {activeView !== "profile" && (
+            <RightPanel
+              mode={activeView === "dm" ? "dm" : "general"}
+              otherUserId={selectedUserId}
+              mobileOpen={mobileRightPanelOpen}
+              onClose={() => setMobileRightPanelOpen(false)}
+            />
+          )}
+        </div>
 
         <MobileBottomNav
           activeView={activeView}
@@ -107,15 +119,6 @@ export default function Chat() {
           onSelectProfile={selectProfile}
         />
       </div>
-
-      {activeView !== "profile" && (
-        <RightPanel
-          mode={activeView === "dm" ? "dm" : "general"}
-          otherUserId={selectedUserId}
-          mobileOpen={mobileRightPanelOpen}
-          onClose={() => setMobileRightPanelOpen(false)}
-        />
-      )}
     </div>
   );
 }

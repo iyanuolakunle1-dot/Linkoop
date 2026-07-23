@@ -51,13 +51,29 @@ export function AuthProvider({ children }) {
   }, [session]);
 
   async function signUp({ email, password, fullName, username }) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName, username } },
-    });
-    if (error) throw error;
-    return data;
+    try {
+      // Validate before sending to Supabase
+      if (!email || !password || !fullName || !username) {
+        throw new Error("All fields are required");
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { 
+          data: { 
+            full_name: fullName, 
+            username: username.toLowerCase().replace(/\s/g, "") 
+          } 
+        },
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("Signup error:", err);
+      throw err;
+    }
   }
 
   async function verifySignupOtp(email, token) {
@@ -71,12 +87,22 @@ export function AuthProvider({ children }) {
   }
 
   async function signIn({ email, password }) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    try {
+      if (!email || !password) {
+        throw new Error("Email and password are required");
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("Signin error:", err);
+      throw err;
+    }
   }
 
   async function signOut() {

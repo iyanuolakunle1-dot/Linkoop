@@ -15,11 +15,17 @@ export default function Avatar({
 
   const px = size * 4;
 
+  // Use a default avatar image if none provided
+  const avatarImage = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${color.replace('#', '')}&color=fff&size=${px * 4}&font-size=0.5`;
+
   return (
     <div className={`relative flex-shrink-0 ${className}`} style={{ width: px, height: px }}>
       <div
         className="w-full h-full rounded-full flex items-center justify-center text-white font-semibold overflow-hidden"
-        style={{ backgroundColor: imageUrl ? 'transparent' : color, fontSize: px / 2.4 }}
+        style={{ 
+          backgroundColor: imageUrl ? 'transparent' : color, 
+          fontSize: px / 2.4 
+        }}
       >
         {imageUrl ? (
           <img 
@@ -28,7 +34,11 @@ export default function Avatar({
             className="w-full h-full object-cover"
           />
         ) : (
-          initials
+          <img 
+            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${color.replace('#', '')}&color=fff&size=${px * 4}&font-size=0.5`}
+            alt={name}
+            className="w-full h-full object-cover"
+          />
         )}
       </div>
       {status && (

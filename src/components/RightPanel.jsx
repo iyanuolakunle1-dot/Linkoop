@@ -18,7 +18,13 @@ export default function RightPanel({ mode, otherUserId, mobileOpen, onClose }) {
       <div className="p-5">
         <div className="text-xs font-semibold text-gray-400 mb-3">ABOUT</div>
         <div className="flex flex-col items-center text-center">
-          <Avatar name={otherUser.full_name} color={otherUser.avatar_color} size={22} status={otherUser.status} />
+          <Avatar 
+            name={otherUser.full_name} 
+            color={otherUser.avatar_color} 
+            size={22} 
+            status={otherUser.status}
+            imageUrl={otherUser.avatar_url}
+          />
           <div className="mt-3 font-semibold text-gray-900 dark:text-gray-100">{otherUser.full_name}</div>
           <div className="text-xs text-gray-500 capitalize">{otherUser.status}</div>
         </div>
@@ -37,7 +43,13 @@ export default function RightPanel({ mode, otherUserId, mobileOpen, onClose }) {
         <div className="space-y-3">
           {onlineUsers.map((u) => (
             <div key={u.id} className="flex items-center gap-3">
-              <Avatar name={u.full_name} color={u.avatar_color} size={8} status={u.status} />
+              <Avatar 
+                name={u.full_name} 
+                color={u.avatar_color} 
+                size={8} 
+                status={u.status}
+                imageUrl={u.avatar_url}
+              />
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">
                   {u.full_name}

@@ -10,6 +10,7 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
   const [otherUser, setOtherUser] = useState(null);
   const scrollRef = useRef(null);
   const { messages, loading, sendMessage, editMessage, deleteMessage } = useRealtimeDM(threadId);
+  const [replyTo, setReplyTo] = useState(null);
 
   useEffect(() => {
     if (!otherUserId) return;
@@ -30,17 +31,32 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
       .catch((err) => console.error("Failed to mark thread as read:", err));
   }, [threadId, messages.length]);
 
-  // Handle sending message along with attachments/files correctly
+  function handleReply(message) {
+    setReplyTo(message);
+  }
+
+  function handleShare(message) {
+    // Share functionality is handled in MessageBubble
+  }
+
   const handleSendMessage = async (content, attachmentFile) => {
     if (!sendMessage) return;
     try {
-      // Safely validate file size before passing to custom hook/API if needed
       if (attachmentFile && attachmentFile.size > 5 * 1024 * 1024) {
         alert("File size must be less than 5MB");
         return;
       }
 
-      await sendMessage(content, attachmentFile);
+      // If replying, add the reply context to the message
+      let finalContent = content;
+      if (replyTo) {
+        const senderName = replyTo.sender?.full_name || "Someone";
+        const replyText = `Replying to ${senderName}: "${replyTo.content || 'Message'}"\n\n${content}`;
+        finalContent = replyText;
+        setReplyTo(null);
+      }
+
+      await sendMessage(finalContent, attachmentFile);
     } catch (err) {
       console.error("Failed to send message:", err);
     }
@@ -60,7 +76,13 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
         <button className="lg:hidden" onClick={onBack}>
           <ArrowLeft size={20} className="text-gray-700 dark:text-gray-200" />
         </button>
-        <Avatar name={otherUser?.full_name} color={otherUser?.avatar_color} size={9} status={otherUser?.status} />
+        <Avatar 
+          name={otherUser?.full_name} 
+          color={otherUser?.avatar_color} 
+          size={9} 
+          status={otherUser?.status}
+          imageUrl={otherUser?.avatar_url}
+        />
         <div className="min-w-0">
           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">
             {otherUser?.full_name || "Loading..."}
@@ -101,14 +123,16 @@ export default function DirectMessage({ threadId, otherUserId, onBack, onToggleR
             showSender={false}
             onEdit={editMessage}
             onDelete={deleteMessage}
+            onReply={handleReply}
+            onShare={handleShare}
           />
         ))}
       </div>
 
       <Composer 
-        onSend={handleSendMessage} 
-        enableVoiceNotes={true} 
-        showAttachments={true} 
+        onSend={handleSendMessage}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
       />
     </div>
   );

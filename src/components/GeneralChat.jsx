@@ -12,6 +12,7 @@ export default function GeneralChat({ onOpenMobileSidebar, onToggleRightPanel })
   const [channel, setChannel] = useState(null);
   const scrollRef = useRef(null);
   const onlineUsers = usePresence();
+  const [replyTo, setReplyTo] = useState(null);
 
   useEffect(() => {
     api.get(`/channels/${GENERAL_CHANNEL_SLUG}`).then(setChannel).catch(console.error);
@@ -33,12 +34,33 @@ export default function GeneralChat({ onOpenMobileSidebar, onToggleRightPanel })
     }
   }
 
+  function handleReply(message) {
+    setReplyTo(message);
+  }
+
+  function handleShare(message) {
+    // Share functionality is handled in MessageBubble
+  }
+
+  const handleSendMessage = async (content, attachmentFile) => {
+    if (!sendMessage) return;
+    try {
+      let finalContent = content;
+      if (replyTo) {
+        const senderName = replyTo.sender?.full_name || "Someone";
+        const replyText = `Replying to ${senderName}: "${replyTo.content || 'Message'}"\n\n${content}`;
+        finalContent = replyText;
+        setReplyTo(null);
+      }
+      await sendMessage(finalContent, attachmentFile);
+    } catch (err) {
+      console.error("Failed to send message:", err);
+    }
+  };
+
   const onlineCount = onlineUsers.filter((u) => u.status === "online").length;
 
   return (
-    // min-h-0 is required here: without it, this flex column refuses to shrink
-    // below its content's natural height, so the message list below never gets
-    // a bounded height to scroll within -- the whole page grows instead.
     <div className="flex flex-col flex-1 min-w-0 min-h-0">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
         <button className="lg:hidden" onClick={onOpenMobileSidebar}>
@@ -79,11 +101,18 @@ export default function GeneralChat({ onOpenMobileSidebar, onToggleRightPanel })
             onReact={handleReact}
             onEdit={editMessage}
             onDelete={deleteMessage}
+            onReply={handleReply}
+            onShare={handleShare}
           />
         ))}
       </div>
 
-      <Composer onSend={sendMessage} disabled={!channel} />
+      <Composer 
+        onSend={handleSendMessage} 
+        disabled={!channel}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+      />
     </div>
   );
 }

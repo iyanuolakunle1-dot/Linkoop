@@ -12,22 +12,46 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Email validation function
+  function isValidEmail(email) {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    // Validate email
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
+
     setLoading(true);
     
     try {
       await signIn({ email, password });
       navigate("/");
     } catch (err) {
-      // Customize error messages based on common Supabase responses
       const message = err.message.toLowerCase();
       
       if (message.includes("invalid login credentials")) {
         setError("Invalid email or password. If you just signed up, make sure you've confirmed your email.");
       } else if (message.includes("email not confirmed")) {
         setError("Please check your inbox and verify your email address before signing in.");
+      } else if (message.includes("rate limit")) {
+        setError("Too many failed attempts. Please try again later.");
       } else {
         setError(err.message || "Failed to sign in. Please try again.");
       }
@@ -53,7 +77,7 @@ export default function Login() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Sign in to keep the conversation going.</p>
 
           {error && (
-            <div className="mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-950 dark:text-red-400 rounded-lg px-3 py-2">
+            <div className="mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-950/50 dark:text-red-400 rounded-lg px-3 py-2 border border-red-200 dark:border-red-800">
               {error}
             </div>
           )}
@@ -86,7 +110,14 @@ export default function Login() {
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg py-2.5 transition-colors"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Signing in...
+                </span>
+              ) : (
+                "Sign In"
+              )}
             </button>
           </form>
         </div>

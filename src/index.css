@@ -8,7 +8,8 @@ html, body, #root {
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-/* Ensure message action menu shows on hover */
+
+/* Message actions - show on hover for desktop, always visible on mobile */
 .message-actions {
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -22,5 +23,21 @@ body {
 @media (max-width: 640px) {
   .message-actions {
     opacity: 1;
+  }
+}
+
+/* Menu dropdown animation */
+.message-actions .absolute {
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

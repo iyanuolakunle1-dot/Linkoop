@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { FileText, Download, MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
+import { FileText, Download, MoreHorizontal, Pencil, Trash2, Check, X, Reply, Share2 } from "lucide-react";
 import Avatar from "./Avatar";
 import ConfirmModal from "./ConfirmModal";
+import ImageModal from "./ImageModal";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 
@@ -14,24 +15,35 @@ function formatTime(iso) {
 }
 
 function AttachmentView({ attachment }) {
-  // Normalize URL and file_type mapping from different database/payload structures
   const fileUrl = attachment.url || attachment.file_url;
   const fileType = attachment.file_type || attachment.fileType || "";
   const fileName = attachment.file_name || attachment.fileName || "attachment";
 
   const isImage = fileType.startsWith("image/");
   const isAudio = fileType.startsWith("audio/") || fileType.includes("webm") || fileName.includes("voice-note");
+  const [imageModalOpen, setImageModalOpen] = useState(false);
 
   if (isImage) {
     return (
-      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block mt-1">
-        <img
-          src={fileUrl}
-          alt={fileName}
-          className="max-w-[240px] max-h-[240px] rounded-xl object-cover border border-black/5"
-          loading="lazy"
-        />
-      </a>
+      <>
+        <button
+          onClick={() => setImageModalOpen(true)}
+          className="block mt-1 cursor-pointer"
+        >
+          <img
+            src={fileUrl}
+            alt={fileName}
+            className="max-w-[240px] max-h-[240px] rounded-xl object-cover border border-black/5 hover:opacity-90 transition-opacity"
+            loading="lazy"
+          />
+        </button>
+        {imageModalOpen && (
+          <ImageModal 
+            imageUrl={fileUrl} 
+            onClose={() => setImageModalOpen(false)} 
+          />
+        )}
+      </>
     );
   }
 
@@ -58,13 +70,20 @@ function AttachmentView({ attachment }) {
   );
 }
 
-export default function MessageBubble({ message, showSender = true, onReact, onEdit, onDelete }) {
+export default function MessageBubble({ 
+  message, 
+  showSender = true, 
+  onReact, 
+  onEdit, 
+  onDelete,
+  onReply,
+  onShare 
+}) {
   const { user } = useAuth();
   const { showToast } = useToast();
   const isMe = message.sender?.id === user?.id || message.sender_id === user?.id;
   const hasText = message.content && message.content.trim().length > 0;
   
-  // Robust attachment resolution with duplicate prevention
   const directUrl = message.file_url || message.url || message.media_url || message.image_url;
   const directType = message.file_type || message.fileType || (directUrl ? "image/" : "");
   const directName = message.file_name || message.fileName || "attachment";
@@ -130,36 +149,37 @@ export default function MessageBubble({ message, showSender = true, onReact, onE
     }
     setConfirmingDelete(false);
   }
-// Add this state in MessageBubble component
-const [imageModalOpen, setImageModalOpen] = useState(false);
 
-// Update the AttachmentView component to:
-const [modalOpen, setModalOpen] = useState(false);
+  function handleReply() {
+    setMenuOpen(false);
+    if (onReply) {
+      onReply(message);
+    }
+  }
 
-// In the image section:
-if (isImage) {
-  return (
-    <>
-      <button
-        onClick={() => setModalOpen(true)}
-        className="block mt-1 cursor-pointer"
-      >
-        <img
-          src={fileUrl}
-          alt={fileName}
-          className="max-w-[240px] max-h-[240px] rounded-xl object-cover border border-black/5 hover:opacity-90 transition-opacity"
-          loading="lazy"
-        />
-      </button>
-      {modalOpen && (
-        <ImageModal 
-          imageUrl={fileUrl} 
-          onClose={() => setModalOpen(false)} 
-        />
-      )}
-    </>
-  );
-}
+  async function handleShare() {
+    setMenuOpen(false);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Message',
+          text: message.content || 'Check out this message',
+          url: window.location.href,
+        });
+      } else {
+        // Fallback: copy to clipboard
+        const text = message.content || 'Check out this message';
+        await navigator.clipboard.writeText(text);
+        showToast("Message copied to clipboard", "success");
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error("Share failed:", err);
+        showToast("Couldn't share message", "error");
+      }
+    }
+  }
+
   const editControls = (
     <div key="edit-controls" className="flex flex-col gap-1.5 mt-1 w-full max-w-[280px]">
       <textarea
@@ -193,32 +213,56 @@ if (isImage) {
     </div>
   );
 
-  const actionMenu = isMe && !editing && (onEdit || onDelete) && (
-    <div key="action-menu" className="relative">
+  const actionMenu = !editing && (onEdit || onDelete || onReply || onShare) && (
+    <div key="action-menu" className="relative inline-block">
       <button
         onClick={() => setMenuOpen((v) => !v)}
-        className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+        className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+        aria-label="Message actions"
       >
         <MoreHorizontal size={15} className="text-gray-400" />
       </button>
       {menuOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-0 mt-1 w-32 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg py-1 z-20">
-            {hasText && onEdit && (
+          <div className={`absolute ${isMe ? 'right-0' : 'left-0'} mt-1 w-40 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg py-1 z-20`}>
+            {/* Reply - available for all messages */}
+            {onReply && (
               <button
-                onClick={startEdit}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                onClick={handleReply}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                <Pencil size={13} /> Edit
+                <Reply size={14} /> Reply
               </button>
             )}
-            {onDelete && (
+            
+            {/* Share - available for all messages */}
+            {onShare && (
+              <button
+                onClick={handleShare}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Share2 size={14} /> Share
+              </button>
+            )}
+            
+            {/* Edit - only for own messages */}
+            {isMe && hasText && onEdit && (
+              <button
+                onClick={startEdit}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            )}
+            
+            {/* Delete - only for own messages */}
+            {isMe && onDelete && (
               <button
                 onClick={handleDeleteClick}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                <Trash2 size={13} /> Delete
+                <Trash2 size={14} /> Delete
               </button>
             )}
           </div>
@@ -240,11 +284,11 @@ if (isImage) {
     />
   );
 
+  // For messages without sender info (like in DM view)
   if (!showSender) {
     return (
       <div key={message.id || "bubble-nosender"}>
-        <div className={`flex group ${isMe ? "justify-end" : "justify-start"}`}>
-          {isMe && <div className="mr-1 self-center">{actionMenu}</div>}
+        <div className={`flex group ${isMe ? "justify-end" : "justify-start"} items-start gap-1`}>
           <div className="max-w-[75%] flex flex-col">
             {editing ? (
               editControls
@@ -256,10 +300,13 @@ if (isImage) {
                     <AttachmentView key={a.id || `att-${message.id}-${idx}`} attachment={a} />
                   ))}
                 </div>
-                <span className={`text-[11px] mt-1 text-gray-400 ${isMe ? "text-right" : ""}`}>
-                  {formatTime(message.created_at)}
-                  {message.edited_at && " · edited"}
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`text-[11px] text-gray-400 ${isMe ? "text-right" : ""}`}>
+                    {formatTime(message.created_at)}
+                    {message.edited_at && " · edited"}
+                  </span>
+                  {actionMenu}
+                </div>
               </>
             )}
           </div>
@@ -269,12 +316,18 @@ if (isImage) {
     );
   }
 
+  // For messages with sender info (like in General Chat)
   return (
     <div key={message.id || "bubble-sender"}>
       <div className={`flex gap-3 group ${isMe ? "flex-row-reverse" : ""}`}>
-        <Avatar name={message.sender?.full_name} color={message.sender?.avatar_color} size={9} />
+        <Avatar 
+          name={message.sender?.full_name} 
+          color={message.sender?.avatar_color} 
+          size={9}
+          imageUrl={message.sender?.avatar_url}
+        />
         <div className={`max-w-[75%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-          <div className={`flex items-baseline gap-2 mb-1 ${isMe ? "flex-row-reverse" : ""}`}>
+          <div className={`flex items-center gap-2 mb-1 ${isMe ? "flex-row-reverse" : ""}`}>
             <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               {isMe ? "You" : (message.sender?.full_name || message.sender?.username || "User")}
             </span>

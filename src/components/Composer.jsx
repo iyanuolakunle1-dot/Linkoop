@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Plus, Image as ImageIcon, Send, X, FileText, Mic, Square, Trash2, Smile } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
@@ -10,7 +10,12 @@ function formatSeconds(s) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-export default function Composer({ onSend, disabled }) {
+export default function Composer({ 
+  onSend, 
+  disabled, 
+  replyTo = null, 
+  onCancelReply = null 
+}) {
   const [text, setText] = useState("");
   const [pendingFile, setPendingFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -18,6 +23,13 @@ export default function Composer({ onSend, disabled }) {
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
   const { recording, seconds, start, stop, cancel } = useVoiceRecorder();
+
+  // Focus input when replyTo changes
+  useEffect(() => {
+    if (replyTo && textInputRef.current) {
+      textInputRef.current.focus();
+    }
+  }, [replyTo]);
 
   async function uploadFile(file, fileNameOverride) {
     setUploading(true);
@@ -93,6 +105,11 @@ export default function Composer({ onSend, disabled }) {
     onSend(trimmed, pendingFile);
     setText("");
     setPendingFile(null);
+    
+    // Clear reply after sending
+    if (onCancelReply) {
+      onCancelReply();
+    }
   }
 
   function insertEmoji(emoji) {
@@ -108,24 +125,12 @@ export default function Composer({ onSend, disabled }) {
     const newText = text.slice(0, start) + emoji + text.slice(end);
     setText(newText);
 
-    // restore cursor right after the inserted emoji, after React re-renders
     requestAnimationFrame(() => {
       const pos = start + emoji.length;
       input.focus();
       input.setSelectionRange(pos, pos);
     });
   }
-// Add this to the existing Composer component
-// Ensure the file input and voice recording work on mobile
-
-// In the Composer component, add:
-const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-
-useEffect(() => {
-  const handleResize = () => setIsMobile(window.innerWidth < 640);
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, []);
 
   if (recording) {
     return (
@@ -154,6 +159,27 @@ useEffect(() => {
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
+      {/* Reply indicator */}
+      {replyTo && (
+        <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 min-w-0">
+            <span className="font-medium text-indigo-600 dark:text-indigo-400 flex-shrink-0">Replying to:</span>
+            <span className="text-gray-500 dark:text-gray-400 truncate">
+              {replyTo.sender?.full_name || "Someone"}: {replyTo.content || "Message"}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              if (onCancelReply) onCancelReply();
+              if (textInputRef.current) textInputRef.current.focus();
+            }}
+            className="p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex-shrink-0 ml-2"
+          >
+            <X size={14} className="text-gray-500" />
+          </button>
+        </div>
+      )}
+
       {pendingFile && (
         <div className="px-4 pt-3 flex items-center gap-2">
           <div className="relative">
@@ -177,11 +203,24 @@ useEffect(() => {
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 sm:px-4 py-3">
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+        
+        {/* Gallery/Image button - NOW VISIBLE ON MOBILE */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 hidden sm:block"
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
+          title="Attach an image or file"
+        >
+          <ImageIcon size={19} className="text-gray-500" />
+        </button>
+
+        {/* Plus button for other files - NOW VISIBLE ON MOBILE */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
           title="Attach a file"
         >
           <Plus size={19} className="text-gray-500" />
@@ -195,7 +234,7 @@ useEffect(() => {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) handleSubmit(e);
             }}
-            placeholder={uploading ? "Uploading..." : "Type a message..."}
+            placeholder={replyTo ? "Type your reply..." : (uploading ? "Uploading..." : "Type a message...")}
             disabled={uploading}
             className="flex-1 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400"
           />
@@ -204,7 +243,7 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setEmojiOpen((v) => !v)}
-              className="p-1.5 hidden sm:block"
+              className="p-1.5"
             >
               <Smile size={18} className="text-gray-400" />
             </button>
@@ -223,15 +262,6 @@ useEffect(() => {
               </>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="p-1.5 hidden sm:block"
-          >
-            <ImageIcon size={18} className="text-gray-400" />
-          </button>
         </div>
 
         {text.trim() || pendingFile ? (

@@ -67,7 +67,12 @@ export default function NotificationBell({ onOpenThread }) {
                   !n.read ? "bg-indigo-50/50 dark:bg-indigo-500/10" : ""
                 }`}
               >
-                <Avatar name={n.actor?.full_name} color={n.actor?.avatar_color} size={8} />
+                <Avatar 
+                  name={n.actor?.full_name} 
+                  color={n.actor?.avatar_color} 
+                  size={8}
+                  imageUrl={n.actor?.avatar_url}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-gray-900 dark:text-gray-100">
                     <span className="font-medium">{n.actor?.full_name}</span>{" "}

@@ -1,39 +1,84 @@
-import { useState, useRef } from "react";
-import { Edit3, Camera, X, Upload } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Edit3, Camera } from "lucide-react";
 import Avatar from "./Avatar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Profile() {
-  const { profile, setProfile } = useAuth();
+  const { profile, setProfile, user } = useAuth();
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
-  const [bio, setBio] = useState(profile?.bio || "");
-  const [role, setRole] = useState(profile?.role || "");
-  const [fullName, setFullName] = useState(profile?.full_name || "");
-  const [username, setUsername] = useState(profile?.username || "");
+  const [bio, setBio] = useState("");
+  const [role, setRole] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
 
-  if (!profile) return null;
+  // Load profile data when component mounts
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const data = await api.get("/profiles/me");
+        setProfile(data);
+        setBio(data.bio || "");
+        setRole(data.role || "");
+        setFullName(data.full_name || "");
+        setUsername(data.username || "");
+        setAvatarUrl(data.avatar_url || "");
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+        showToast("Failed to load profile", "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, [user, setProfile, showToast]);
+
+  // Update form fields when profile changes
+  useEffect(() => {
+    if (profile) {
+      setBio(profile.bio || "");
+      setRole(profile.role || "");
+      setFullName(profile.full_name || "");
+      setUsername(profile.username || "");
+      setAvatarUrl(profile.avatar_url || "");
+    }
+  }, [profile]);
 
   async function handleSave() {
+    if (!fullName.trim()) {
+      showToast("Full name is required", "error");
+      return;
+    }
+
     setSaving(true);
     try {
       const updated = await api.patch("/profiles/me", { 
         bio, 
         role, 
         full_name: fullName,
-        username 
+        username: username.toLowerCase().replace(/\s/g, "")
       });
       setProfile(updated);
+      setAvatarUrl(updated.avatar_url || "");
       setEditing(false);
       showToast("Profile updated successfully", "success");
     } catch (err) {
       console.error(err);
-      showToast("Failed to update profile", "error");
+      showToast(err.message || "Failed to update profile", "error");
     } finally {
       setSaving(false);
     }
@@ -58,50 +103,78 @@ export default function Profile() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload/avatar`, {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/upload/avatar`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${(await import("../lib/supabaseClient")).supabase.auth.getSession().then(data => data.data.session?.access_token)}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Upload failed");
+      }
       
-      const data = await response.json();
+      const data = await res.json();
       
       // Update profile with new avatar URL
       const updated = await api.patch("/profiles/me", { 
         avatar_url: data.url 
       });
       setProfile(updated);
+      setAvatarUrl(data.url);
       showToast("Avatar updated successfully", "success");
     } catch (err) {
       console.error(err);
-      showToast("Failed to upload avatar", "error");
+      showToast(err.message || "Failed to upload avatar", "error");
     } finally {
       setUploadingAvatar(false);
       e.target.value = "";
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center text-gray-500">
+          <p className="text-sm">No profile data found</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 text-indigo-500 hover:underline text-sm"
+          >
+            Reload page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
       <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
-        <div className="h-28 sm:h-36 bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 relative">
-          {/* Cover photo placeholder - can be enhanced later */}
-        </div>
+        <div className="h-28 sm:h-36 bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 relative" />
         
         <div className="bg-white dark:bg-gray-900 px-5 pb-5">
           <div className="-mt-10 flex items-end justify-between">
             <div className="relative group">
               <div className="ring-4 ring-white dark:ring-gray-900 rounded-full">
                 <Avatar 
-                  name={profile.full_name} 
-                  color={profile.avatar_color} 
+                  name={profile.full_name || "User"} 
+                  color={profile.avatar_color || "#6366F1"} 
                   size={22} 
-                  status="online"
-                  imageUrl={profile.avatar_url}
+                  status={profile.status || "online"}
+                  imageUrl={avatarUrl || profile.avatar_url}
                 />
               </div>
               
@@ -138,10 +211,10 @@ export default function Profile() {
           {!editing ? (
             <>
               <div className="mt-3 text-lg font-bold text-gray-900 dark:text-gray-100">
-                {profile.full_name}
+                {profile.full_name || "User"}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                @{profile.username} · Online
+                @{profile.username || "user"} · {profile.status || "online"}
               </div>
               {profile.role && (
                 <div className="mt-2 inline-block bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium px-2.5 py-1 rounded-full">
@@ -152,18 +225,17 @@ export default function Profile() {
                 {profile.bio || "No bio yet. Tell people about yourself!"}
               </p>
               
-              {/* Additional stats */}
               <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex gap-6">
                 <div>
                   <div className="text-xs text-gray-400">Member since</div>
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {new Date(profile.created_at).toLocaleDateString()}
+                    {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : "N/A"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-400">Status</div>
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                    {profile.status}
+                    {profile.status || "online"}
                   </div>
                 </div>
               </div>
@@ -176,6 +248,7 @@ export default function Profile() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Your full name"
                 />
               </div>
               <div>
@@ -184,6 +257,7 @@ export default function Profile() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="username"
                 />
               </div>
               <div>
@@ -205,13 +279,21 @@ export default function Profile() {
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg px-4 py-2 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
         </div>

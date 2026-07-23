@@ -51,7 +51,13 @@ export default function TopBar({
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
           >
-            <Avatar name={profile?.full_name} color={profile?.avatar_color} size={7} status="online" />
+            <Avatar 
+              name={profile?.full_name} 
+              color={profile?.avatar_color} 
+              size={7} 
+              status="online"
+              imageUrl={profile?.avatar_url}
+            />
             <span className="text-sm font-medium hidden sm:block text-gray-900 dark:text-gray-100">
               {profile?.full_name}
             </span>

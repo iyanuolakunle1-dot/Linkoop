@@ -2,30 +2,66 @@ import { supabase } from "./supabaseClient";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+if (!API_URL) {
+  console.error("VITE_API_URL is missing");
+}
+
 async function request(path, options = {}) {
+
   const { data: { session } } = await supabase.auth.getSession();
+
   const token = session?.access_token;
+
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(token && {
+        Authorization: `Bearer ${token}`,
+      }),
       ...options.headers,
     },
   });
 
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(err.error || `Request failed: ${res.status}`);
+
+    const err = await res.json()
+      .catch(() => ({
+        error: "Unknown error"
+      }));
+
+    throw new Error(
+      err.error || `Request failed: ${res.status}`
+    );
   }
+
 
   return res.json();
 }
 
+
 export const api = {
-  get: (path) => request(path),
-  post: (path, body) => request(path, { method: "POST", body: JSON.stringify(body) }),
-  patch: (path, body) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
-  delete: (path) => request(path, { method: "DELETE" }),
+
+  get: (path) =>
+    request(path),
+
+  post: (path, body) =>
+    request(path, {
+      method:"POST",
+      body:JSON.stringify(body)
+    }),
+
+  patch: (path, body) =>
+    request(path,{
+      method:"PATCH",
+      body:JSON.stringify(body)
+    }),
+
+  delete:(path)=>
+    request(path,{
+      method:"DELETE"
+    })
+
 };

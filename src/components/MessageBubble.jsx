@@ -64,11 +64,15 @@ export default function MessageBubble({ message, showSender = true, onReact, onE
   const isMe = message.sender?.id === user?.id || message.sender_id === user?.id;
   const hasText = message.content && message.content.trim().length > 0;
   
-  // Robust attachment resolution supporting array collections or flat inline fields
+  // Robust attachment resolution supporting array collections or flat inline fields (including DM fallbacks)
+  const directUrl = message.file_url || message.url || message.media_url || message.image_url;
+  const directType = message.file_type || message.fileType || (directUrl ? "image/" : "");
+  const directName = message.file_name || message.fileName || "attachment";
+
   const attachments = Array.isArray(message.attachments) && message.attachments.length > 0 
     ? message.attachments 
-    : (message.file_url || message.url)
-      ? [{ id: message.id || "inline", url: message.file_url || message.url, file_type: message.file_type || message.fileType, file_name: message.file_name || message.fileName }] 
+    : directUrl
+      ? [{ id: message.id || "inline", url: directUrl, file_type: directType, file_name: directName }] 
       : [];
 
   const [menuOpen, setMenuOpen] = useState(false);

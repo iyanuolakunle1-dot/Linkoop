@@ -53,72 +53,74 @@ export default function Chat() {
   }
 
   return (
-    <div className="w-full min-h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
-      <Sidebar
-        activeView={activeView}
-        onSelectGeneral={selectGeneral}
-        onSelectDM={selectDM}
-        onSelectProfile={selectProfile}
-        selectedDMUserId={selectedUserId}
-        mobileOpen={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <TopBar
-          onSelectProfile={selectProfile}
-          onSelectUser={handleSelectUserFromSearch}
-          onSelectChannelMessage={selectGeneral}
-          onSelectDmMessage={selectDM}
-        />
-
-        <div className="flex-1 flex min-h-0 overflow-hidden relative">
-          <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-            {activeView === "general" && (
-              <GeneralChat
-                onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-                onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
-              />
-            )}
-
-            {activeView === "dm" && !selectedThreadId && (
-              <DMList
-                onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-                onSelectThread={selectDM}
-                allUsers={allUsers}
-                currentUserId={user?.id}
-              />
-            )}
-
-            {activeView === "dm" && selectedThreadId && (
-              <DirectMessage
-                threadId={selectedThreadId}
-                otherUserId={selectedUserId}
-                onBack={goToDMList}
-                onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
-              />
-            )}
-
-            {activeView === "profile" && <Profile />}
-          </div>
-
-          {activeView !== "profile" && (
-            <RightPanel
-              mode={activeView === "dm" ? "dm" : "general"}
-              otherUserId={selectedUserId}
-              mobileOpen={mobileRightPanelOpen}
-              onClose={() => setMobileRightPanelOpen(false)}
-            />
-          )}
-        </div>
-
-        <MobileBottomNav
+    <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-950">
+      <div className="flex-1 flex w-full min-h-0 relative overflow-hidden">
+        <Sidebar
           activeView={activeView}
           onSelectGeneral={selectGeneral}
-          onSelectDM={goToDMList}
+          onSelectDM={selectDM}
           onSelectProfile={selectProfile}
+          selectedDMUserId={selectedUserId}
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
         />
+
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+          <TopBar
+            onSelectProfile={selectProfile}
+            onSelectUser={handleSelectUserFromSearch}
+            onSelectChannelMessage={selectGeneral}
+            onSelectDmMessage={selectDM}
+          />
+
+          <div className="flex-1 flex min-h-0 overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+              {activeView === "general" && (
+                <GeneralChat
+                  onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+                  onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
+                />
+              )}
+
+              {activeView === "dm" && !selectedThreadId && (
+                <DMList
+                  onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+                  onSelectThread={selectDM}
+                  allUsers={allUsers}
+                  currentUserId={user?.id}
+                />
+              )}
+
+              {activeView === "dm" && selectedThreadId && (
+                <DirectMessage
+                  threadId={selectedThreadId}
+                  otherUserId={selectedUserId}
+                  onBack={goToDMList}
+                  onToggleRightPanel={() => setMobileRightPanelOpen((v) => !v)}
+                />
+              )}
+
+              {activeView === "profile" && <Profile />}
+            </div>
+
+            {activeView !== "profile" && (
+              <RightPanel
+                mode={activeView === "dm" ? "dm" : "general"}
+                otherUserId={selectedUserId}
+                mobileOpen={mobileRightPanelOpen}
+                onClose={() => setMobileRightPanelOpen(false)}
+              />
+            )}
+          </div>
+        </div>
       </div>
+
+      <MobileBottomNav
+        activeView={activeView}
+        onSelectGeneral={selectGeneral}
+        onSelectDM={goToDMList}
+        onSelectProfile={selectProfile}
+      />
     </div>
   );
 }

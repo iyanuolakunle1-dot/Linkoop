@@ -53,7 +53,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="w-full h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-950">
+    <div className="w-full h-[100dvh] flex overflow-hidden bg-gray-50 dark:bg-gray-950 fixed inset-0">
       <Sidebar
         activeView={activeView}
         onSelectGeneral={selectGeneral}
@@ -64,7 +64,7 @@ export default function Chat() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         <TopBar
           onSelectProfile={selectProfile}
           onSelectUser={handleSelectUserFromSearch}

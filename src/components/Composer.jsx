@@ -24,7 +24,6 @@ export default function Composer({
   const textInputRef = useRef(null);
   const { recording, seconds, start, stop, cancel } = useVoiceRecorder();
 
-  // Focus input when replyTo changes
   useEffect(() => {
     if (replyTo && textInputRef.current) {
       textInputRef.current.focus();
@@ -46,7 +45,8 @@ export default function Composer({
       });
 
       if (!res.ok) throw new Error("Upload failed");
-      return await res.json();
+      const data = await res.json();
+      return data;
     } finally {
       setUploading(false);
     }
@@ -86,11 +86,16 @@ export default function Composer({
 
     try {
       const uploaded = await uploadFile(blob, "voice-note.webm");
-      onSend("", {
+      
+      // Send the voice note immediately
+      await onSend("", {
         url: uploaded.url,
         fileName: uploaded.fileName,
         fileType: uploaded.fileType,
       });
+      
+      // Clear any pending file state
+      setPendingFile(null);
     } catch (err) {
       console.error("Voice note upload failed:", err);
     }
@@ -106,7 +111,6 @@ export default function Composer({
     setText("");
     setPendingFile(null);
     
-    // Clear reply after sending
     if (onCancelReply) {
       onCancelReply();
     }
@@ -159,7 +163,6 @@ export default function Composer({
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
-      {/* Reply indicator */}
       {replyTo && (
         <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 min-w-0">
@@ -204,7 +207,6 @@ export default function Composer({
       <form onSubmit={handleSubmit} className="flex items-center gap-2 px-3 sm:px-4 py-3">
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
         
-        {/* Gallery/Image button - NOW VISIBLE ON MOBILE */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -215,12 +217,11 @@ export default function Composer({
           <ImageIcon size={19} className="text-gray-500" />
         </button>
 
-        {/* Plus button for other files - NOW VISIBLE ON MOBILE */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0 hidden sm:block"
           title="Attach a file"
         >
           <Plus size={19} className="text-gray-500" />

@@ -6,7 +6,6 @@ export function useRealtimeMessages(channelId) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Helper to normalize attachment fields (`url` vs `file_url`, etc.)
   const normalizeAttachments = (attachments = []) => {
     return attachments.map((att) => ({
       ...att,
@@ -20,9 +19,12 @@ export function useRealtimeMessages(channelId) {
     setLoading(true);
     api.get(`/messages/${channelId}`)
       .then((data) => {
-        // Normalize loaded messages attachments
         const formatted = (data || []).map((m) => ({
           ...m,
+          sender: {
+            ...m.sender,
+            avatar_url: m.sender?.avatar_url || null // Ensure avatar_url is passed
+          },
           attachments: normalizeAttachments(m.attachments)
         }));
         setMessages(formatted);
@@ -43,7 +45,7 @@ export function useRealtimeMessages(channelId) {
         async (payload) => {
           const { data: sender } = await supabase
             .from("profiles")
-            .select("id, username, full_name, avatar_color")
+            .select("id, username, full_name, avatar_color, avatar_url")
             .eq("id", payload.new.sender_id)
             .single();
 
@@ -51,7 +53,10 @@ export function useRealtimeMessages(channelId) {
             const merged = new Map(prev.map((m) => [m.id, m]));
             merged.set(payload.new.id, { 
               ...payload.new, 
-              sender, 
+              sender: {
+                ...sender,
+                avatar_url: sender?.avatar_url || null
+              },
               reactions: [], 
               attachments: [] 
             });
@@ -108,7 +113,6 @@ export function useRealtimeMessages(channelId) {
 
   const sendMessage = useCallback(
     async (content, attachment) => {
-      // Note: mapping `url` to both properties safely so the backend insert captures it
       const attachmentsPayload = attachment ? [{
         url: attachment.url || attachment.file_url,
         file_type: attachment.fileType || attachment.file_type,
@@ -127,6 +131,10 @@ export function useRealtimeMessages(channelId) {
         
         merged.set(msg.id, { 
           ...msg, 
+          sender: {
+            ...msg.sender,
+            avatar_url: msg.sender?.avatar_url || null
+          },
           reactions: msg.reactions || [], 
           attachments: formattedAttachments 
         });
